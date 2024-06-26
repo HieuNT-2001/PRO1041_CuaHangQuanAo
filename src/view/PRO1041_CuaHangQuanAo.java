@@ -15,6 +15,7 @@ public class PRO1041_CuaHangQuanAo {
      */
     public static void main(String[] args) {
         // TODO code application logic here
+        
     }
     
 }
