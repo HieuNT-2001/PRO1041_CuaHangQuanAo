@@ -109,7 +109,8 @@ GO
 
 -- TẠO SP
 -- SP LẤY DANH SÁCH SẢN PHẨM
-CREATE OR ALTER PROC getAll_sanPham
+CREATE OR ALTER PROC get_sanPham
+    (@TrangThai INT)
 AS
 SELECT DISTINCT
     'SP' + FORMAT(MaSP, '0000') AS MaSP,
@@ -124,11 +125,13 @@ SELECT DISTINCT
     TrangThai
 FROM SanPham sp
     JOIN NhaCungCap ncc ON sp.MaNCC = ncc.MaNCC
+WHERE TrangThai = @TrangThai
 ORDER BY MaSP ASC
 GO
 
 -- SP LẤY DANH SÁCH HÓA ĐƠN
-CREATE OR ALTER PROC getAll_hoaDon
+CREATE OR ALTER PROC get_hoaDon
+    (@TrangThai INT)
 AS
 SELECT DISTINCT
     'HD' + FORMAT(hd.MaHD, '0000') AS MaHD,
@@ -148,6 +151,7 @@ FROM HoaDon hd
     LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
     JOIN HoaDonChiTiet hdct ON hd.MaHD = hdct.MaHD
     JOIN SanPham sp ON hdct.MaSP = sp.MaSP
+WHERE hd.TrangThai = @TrangThai
 GROUP BY hd.MaHD,
     nv.HoTen,
     hd.NgayTao,
@@ -226,6 +230,31 @@ FROM SanPham sp
     LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
 GROUP BY MONTH(hd.NgayTao)
 ORDER BY MONTH(hd.NgayTao) ASC
+GO
+
+-- SP LẤY TOP 10 SẢN PHẨM BÁN CHẠY TRONG THÁNG
+CREATE OR ALTER PROC get_top10_sanPham
+AS
+SELECT DISTINCT TOP 10
+    'SP' + FORMAT(sp.MaSP, '0000') AS MaSP,
+    TenSP,
+    TenNCC,
+    LoaiSP,
+    MauSac,
+    KichThuoc,
+    ChatLieu,
+    SUM(hdct.SoLuong) AS SoLuongBan
+FROM NhaCungCap ncc
+    JOIN SanPham sp ON ncc.MaNCC = sp.MaNCC
+    JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+GROUP BY sp.MaSP,
+    TenSP,
+    TenNCC,
+    LoaiSP,
+    MauSac,
+    KichThuoc,
+    ChatLieu
+ORDER BY SoLuongBan DESC
 GO
 
 -- SP LẤY THÀNH TIỀN HÓA ĐƠN
@@ -373,9 +402,9 @@ VALUES
     (2, 3, 3)
 GO
 
--- EXEC getAll_sanPham
+-- EXEC get_sanPham 1
 
--- EXEC getAll_hoaDon
+-- EXEC get_hoaDon 1
 
 -- EXEC get_doanhThu_today
 
