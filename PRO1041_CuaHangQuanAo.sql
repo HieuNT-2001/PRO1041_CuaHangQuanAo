@@ -109,177 +109,216 @@ GO
 
 -- TẠO SP
 -- SP LẤY DANH SÁCH SẢN PHẨM
-CREATE OR ALTER PROC get_sanPham
-    (@TrangThai INT)
+CREATE OR ALTER PROCEDURE get_sanPham
+    @TrangThai INT
 AS
-SELECT DISTINCT
-    'SP' + FORMAT(MaSP, '0000') AS MaSP,
-    TenSP,
-    TenNCC,
-    LoaiSP,
-    MauSac,
-    KichThuoc,
-    ChatLieu,
-    DonGia,
-    SoLuong,
-    TrangThai
-FROM SanPham sp
-    JOIN NhaCungCap ncc ON sp.MaNCC = ncc.MaNCC
-WHERE TrangThai = @TrangThai
-ORDER BY MaSP ASC
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT DISTINCT
+        'SP' + RIGHT('0000' + CAST(MaSP AS VARCHAR(4)), 4) AS MaSP,
+        TenSP,
+        TenNCC,
+        LoaiSP,
+        MauSac,
+        KichThuoc,
+        ChatLieu,
+        DonGia,
+        SoLuong,
+        TrangThai
+    FROM SanPham sp
+        INNER JOIN NhaCungCap ncc ON sp.MaNCC = ncc.MaNCC
+    WHERE (sp.TrangThai = @TrangThai OR @TrangThai = -1)
+    ORDER BY MaSP ASC;
+END
 GO
 
 -- SP LẤY DANH SÁCH HÓA ĐƠN
-CREATE OR ALTER PROC get_hoaDon
-    (@TrangThai INT)
+CREATE OR ALTER PROCEDURE get_hoaDon
+    @TrangThai INT
 AS
-SELECT DISTINCT
-    'HD' + FORMAT(hd.MaHD, '0000') AS MaHD,
-    nv.HoTen AS NguoiTao,
-    NgayTao,
-    KenhBanHang,
-    ISNULL(kh.TenKH, '') AS KhachHang,
-    ISNULL(hd.MaKM, '') AS MaKM,
-    SUM(sp.DonGia*hdct.SoLuong) AS TongThanhTien,
-    SUM(sp.DonGia*hdct.SoLuong * ISNULL(km.GiamGia, 0)) AS GiamGiaHD,
-    SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))) AS TongThanhToan,
-    hd.TrangThai,
-    LyDo
-FROM HoaDon hd
-    JOIN NhanVien nv ON hd.MaNV = nv.MaNV
-    LEFT JOIN KhachHang kh ON hd.MaKH = kh.MaKH
-    LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
-    JOIN HoaDonChiTiet hdct ON hd.MaHD = hdct.MaHD
-    JOIN SanPham sp ON hdct.MaSP = sp.MaSP
-WHERE hd.TrangThai = @TrangThai
-GROUP BY hd.MaHD,
-    nv.HoTen,
-    hd.NgayTao,
-    hd.KenhBanHang,
-    kh.TenKH,
-    hd.MaKM,
-    hd.TrangThai,
-    hd.LyDo
-ORDER BY hd.NgayTao DESC
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT DISTINCT
+        'HD' + RIGHT('0000' + CAST(hd.MaHD AS VARCHAR(4)), 4) AS MaHD,
+        nv.HoTen AS NguoiTao,
+        hd.NgayTao,
+        hd.KenhBanHang,
+        ISNULL(kh.TenKH, '') AS KhachHang,
+        ISNULL(hd.MaKM, '') AS MaKM,
+        SUM(sp.DonGia * hdct.SoLuong) AS TongThanhTien,
+        SUM(sp.DonGia * hdct.SoLuong * ISNULL(km.GiamGia, 0)) AS GiamGiaHD,
+        SUM(sp.DonGia * hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))) AS TongThanhToan,
+        hd.TrangThai,
+        hd.LyDo
+    FROM HoaDon hd
+        JOIN NhanVien nv ON hd.MaNV = nv.MaNV
+        LEFT JOIN KhachHang kh ON hd.MaKH = kh.MaKH
+        LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
+        JOIN HoaDonChiTiet hdct ON hd.MaHD = hdct.MaHD
+        JOIN SanPham sp ON hdct.MaSP = sp.MaSP
+    WHERE (hd.TrangThai = @TrangThai OR @TrangThai = -1)
+    GROUP BY hd.MaHD,
+        nv.HoTen,
+        hd.NgayTao,
+        hd.KenhBanHang,
+        kh.TenKH,
+        hd.MaKM,
+        hd.TrangThai,
+        hd.LyDo
+    ORDER BY hd.NgayTao DESC;
+END
 GO
 
 -- SP LẤY DOANH THU NGÀY HÔM NAY
-CREATE OR ALTER PROC get_doanhThu_today
+CREATE OR ALTER PROCEDURE get_doanhThu_today
 AS
-SELECT
-    ISNULL(SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0)
-FROM SanPham sp
-    JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
-    JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
-    LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
-WHERE hd.NgayTao = CONVERT(DATE, GETDATE()) 
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        ISNULL(SUM(sp.DonGia * hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0) AS DoanhThu
+    FROM SanPham sp
+        JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+        JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+        LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
+    WHERE hd.NgayTao = CAST(GETDATE() AS DATE);
+END
 GO
 
 -- SP LẤY DOANH THU THEO NGÀY
-CREATE OR ALTER PROC get_doanhThu_byDate(
+CREATE OR ALTER PROCEDURE get_doanhThu_byDate
     @start DATE,
     @end DATE
-)
 AS
-SELECT
-    ISNULL(SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0)
-FROM SanPham sp
-    JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
-    JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
-    LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
-WHERE hd.NgayTao BETWEEN @start and @end 
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        ISNULL(SUM(sp.DonGia * hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0) AS DoanhThu
+    FROM SanPham sp
+        JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+        JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+        LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
+    WHERE hd.NgayTao BETWEEN @start AND @end;
+END
 GO
 
 -- SP LẤY DOANH THU THEO THÁNG HIỆN TẠI
 CREATE OR ALTER PROC get_doanhThu_thisMonth
 AS
-SELECT
-    ISNULL(SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0)
-FROM SanPham sp
-    JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
-    JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
-    LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
-WHERE MONTH(hd.NgayTao) = MONTH(GETDATE())
-    AND YEAR(hd.NgayTao) = YEAR(GETDATE())
+BEGIN
+	SET NOCOUNT ON
+
+	SELECT
+		ISNULL(SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0) AS DoanhThu
+	FROM SanPham sp
+		JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+		JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+		LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
+	WHERE MONTH(hd.NgayTao) = MONTH(GETDATE())
+		AND YEAR(hd.NgayTao) = YEAR(GETDATE())
+END
 GO
 
 -- SP LẤY DOANH THEO NĂM HIỆN TẠI
 CREATE OR ALTER PROC get_doanhThu_thisYear
 AS
-SELECT
-    ISNULL(SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0)
-FROM SanPham sp
-    JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
-    JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
-    LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
-WHERE YEAR(hd.NgayTao) = YEAR(GETDATE())
+BEGIN
+	SET NOCOUNT ON
+
+	SELECT
+		ISNULL(SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))), 0) AS DoanhThu
+	FROM SanPham sp
+		JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+		JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+		LEFT JOIN KhuyenMai km on hd.MaKM = km.MaKM
+	WHERE YEAR(hd.NgayTao) = YEAR(GETDATE())
+END
 GO
 
 -- SP LẤY CHI TIẾT DOANH THU
-CREATE OR ALTER PROC get_doanhThu_detail
+CREATE OR ALTER PROCEDURE get_doanhThu_detail
 AS
-SELECT DISTINCT
-    MONTH(hd.NgayTao) AS Thang,
-    SUM(hdct.SoLuong) AS SoLuongBan,
-    SUM(sp.DonGia*hdct.SoLuong) AS TongGiaBan,
-    SUM(sp.DonGia*hdct.SoLuong * ISNULL(km.GiamGia, 0)) AS TongGiamGia,
-    SUM(sp.DonGia*hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))) AS TongDoanhThu
-FROM SanPham sp
-    JOIN HoaDonChiTiet hdct on sp.MaSP = hdct.MaSP
-    JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
-    LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
-GROUP BY MONTH(hd.NgayTao)
-ORDER BY MONTH(hd.NgayTao) ASC
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        MONTH(hd.NgayTao) AS Thang,
+        SUM(hdct.SoLuong) AS SoLuongBan,
+        SUM(sp.DonGia * hdct.SoLuong) AS TongGiaBan,
+        SUM(sp.DonGia * hdct.SoLuong * ISNULL(km.GiamGia, 0)) AS TongGiamGia,
+        SUM(sp.DonGia * hdct.SoLuong * (1 - ISNULL(km.GiamGia, 0))) AS TongDoanhThu
+    FROM SanPham sp
+        JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+        JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+        LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
+    GROUP BY MONTH(hd.NgayTao)
+    ORDER BY MONTH(hd.NgayTao) ASC;
+END
 GO
 
+
 -- SP LẤY TOP 10 SẢN PHẨM BÁN CHẠY TRONG THÁNG
-CREATE OR ALTER PROC get_top10_sanPham
+CREATE OR ALTER PROCEDURE get_top10_sanPham
+    @Thang INT,
+    @Nam INT
 AS
-SELECT DISTINCT TOP 10
-    'SP' + FORMAT(sp.MaSP, '0000') AS MaSP,
-    TenSP,
-    TenNCC,
-    LoaiSP,
-    MauSac,
-    KichThuoc,
-    ChatLieu,
-    SUM(hdct.SoLuong) AS SoLuongBan
-FROM NhaCungCap ncc
-    JOIN SanPham sp ON ncc.MaNCC = sp.MaNCC
-    JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
-GROUP BY sp.MaSP,
-    TenSP,
-    TenNCC,
-    LoaiSP,
-    MauSac,
-    KichThuoc,
-    ChatLieu
-ORDER BY SoLuongBan DESC
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT TOP 10
+        'SP' + FORMAT(sp.MaSP, '0000') AS MaSP,
+        sp.TenSP,
+        ncc.TenNCC,
+        sp.LoaiSP,
+        sp.MauSac,
+        sp.KichThuoc,
+        sp.ChatLieu,
+        SUM(hdct.SoLuong) AS SoLuongBan
+    FROM NhaCungCap ncc
+        JOIN SanPham sp ON ncc.MaNCC = sp.MaNCC
+        JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+        JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+    WHERE MONTH(hd.NgayTao) = @Thang
+        AND YEAR(hd.NgayTao) = @Nam
+    GROUP BY sp.MaSP, sp.TenSP, ncc.TenNCC, sp.LoaiSP, sp.MauSac, sp.KichThuoc, sp.ChatLieu
+    ORDER BY SoLuongBan DESC;
+END
 GO
 
 -- SP LẤY THÀNH TIỀN HÓA ĐƠN
-CREATE OR ALTER PROC get_thanhTien
-    (@MaHD INT)
+CREATE OR ALTER PROCEDURE get_thanhTien
+    @MaHD INT
 AS
-SELECT DISTINCT
-    SUM(sp.DonGia*hdct.SoLuong) AS TongThanhTien
-FROM SanPham sp
-    JOIN HoaDonChiTiet hdct on sp.MaSP = hdct.MaSP
-    JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
-WHERE hd.MaHD = @MaHD
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        SUM(sp.DonGia * hdct.SoLuong) AS TongThanhTien
+    FROM SanPham sp
+        JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+        JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+    WHERE hd.MaHD = @MaHD;
+END
 GO
 
 -- SP LẤY GIẢM GIÁ HÓA ĐƠN
-CREATE OR ALTER PROC get_giamGia
-    (@MaHD INT)
+CREATE OR ALTER PROCEDURE get_giamGia
+    @MaHD INT
 AS
-SELECT DISTINCT
-    SUM(sp.DonGia*hdct.SoLuong * ISNULL(km.GiamGia, 0)) AS GiamGiaHD
-FROM SanPham sp
-    JOIN HoaDonChiTiet hdct on sp.MaSP = hdct.MaSP
-    JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
-    LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
-WHERE hd.MaHD = @MaHD
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        SUM(sp.DonGia * hdct.SoLuong * ISNULL(km.GiamGia, 0)) AS GiamGiaHD
+    FROM SanPham sp
+        JOIN HoaDonChiTiet hdct ON sp.MaSP = hdct.MaSP
+        JOIN HoaDon hd ON hdct.MaHD = hd.MaHD
+        LEFT JOIN KhuyenMai km ON hd.MaKM = km.MaKM
+    WHERE hd.MaHD = @MaHD;
+END
 GO
 
 -- TRIGGER INSERT HÓA ĐƠN CHI TIẾT
@@ -287,7 +326,8 @@ CREATE OR ALTER TRIGGER insert_HoaDon ON HoaDonChiTiet
 AFTER INSERT
 AS
 BEGIN
-    IF EXISTS (SELECT * FROM inserted)
+    IF EXISTS (SELECT *
+    FROM inserted)
     BEGIN
         UPDATE SanPham
             SET SoLuong = sp.SoLuong - i.SoLuong
@@ -302,7 +342,8 @@ CREATE OR ALTER TRIGGER update_HoaDon ON HoaDonChiTiet
 AFTER UPDATE
 AS
 BEGIN
-    IF EXISTS (SELECT * FROM inserted)
+    IF EXISTS (SELECT *
+    FROM inserted)
     BEGIN
         UPDATE SanPham
             SET SoLuong = sp.SoLuong - (i.SoLuong - ISNULL(d.SoLuong, 0))
@@ -318,7 +359,9 @@ CREATE OR ALTER TRIGGER cancel_HoaDon ON HoaDon
 AFTER UPDATE
 AS
 BEGIN
-    IF EXISTS (SELECT * FROM inserted WHERE TrangThai = 2)
+    IF EXISTS (SELECT *
+    FROM inserted
+    WHERE TrangThai = 2)
     BEGIN
         UPDATE SanPham
             SET SoLuong = sp.SoLuong + hdct.SoLuong
@@ -402,20 +445,22 @@ VALUES
     (2, 3, 3)
 GO
 
--- EXEC get_sanPham 1
+EXEC get_sanPham 1
 
--- EXEC get_hoaDon 1
+EXEC get_hoaDon 1
 
--- EXEC get_doanhThu_today
+EXEC get_doanhThu_today
 
--- EXEC get_doanhThu_byDate '2024-07-01', '2024-07-15'
+EXEC get_doanhThu_byDate '2024-06-01', '2024-07-15'
 
--- EXEC get_doanhThu_thisMonth
+EXEC get_doanhThu_thisMonth
 
--- EXEC get_doanhThu_thisYear
+EXEC get_doanhThu_thisYear
 
--- EXEC get_doanhThu_detail
+EXEC get_doanhThu_detail
 
--- EXEC get_thanhTien 1
+EXEC get_top10_sanPham 6, 2024
 
--- EXEC get_giamGia 2
+EXEC get_thanhTien 1
+
+EXEC get_giamGia 1
